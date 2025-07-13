@@ -1214,24 +1214,27 @@ class CITK2SaveEditor:
         messagebox.showinfo("Fall of the USA", "American variables set to 0!")
         
     def scientific_breakthrough(self):
-        """Set all technology points to 1000"""
+        """Set all technology points to 1000, except for the Americans'"""
         if not self.data or "technologies" not in self.data:
             messagebox.showwarning("Warning", "No technology data available")
             return
             
         try:
-            # Iterate through all technology categories
-            for category, tech_list in self.data["technologies"].items():
-                # Iterate through each technology level in the category
-                for tech in tech_list:
-                    # Set all point types to 1000
-                    if "investedCost" in tech:
-                        tech["investedCost"] = {
-                            "militaryPoints": 1000,
-                            "physicPoints": 1000,
-                            "cyberneticPoints": 1000,
-                            "civilPoints": 1000
-                        }
+            # Define the categories to modify
+            desired_categories = ["Computers", "SpaceProgram", "Agriculture", "Military", "Nuclear"]
+            
+            # Iterate through only the desired technology categories
+            for category in desired_categories:
+                if category in self.data["technologies"]:
+                    for tech in self.data["technologies"][category]:
+                        # Set all point types to 1000
+                        if "investedCost" in tech:
+                            tech["investedCost"] = {
+                                "militaryPoints": 1000,
+                                "physicPoints": 1000,
+                                "cyberneticPoints": 1000,
+                                "civilPoints": 1000
+                            }
             
             messagebox.showinfo("Scientific Breakthrough", 
                                "All technology points set to 1000!")
