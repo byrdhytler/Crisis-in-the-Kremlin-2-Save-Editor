@@ -618,7 +618,7 @@ class CITK2SaveEditor:
         # Add war action buttons
         victory_btn = ttk.Button(
             war_actions_frame, 
-            text="Total Victory", 
+            text="Victory for Second Side", 
             command=self.total_victory,
             style="Gold.TButton"
         )
@@ -626,7 +626,7 @@ class CITK2SaveEditor:
         
         defeat_btn = ttk.Button(
             war_actions_frame, 
-            text="Total Defeat", 
+            text="Victory for First Side", 
             command=self.total_defeat,
             style="Gold.TButton"
         )
@@ -1715,9 +1715,9 @@ class CITK2SaveEditor:
                         sector_entries["secondSideMorale"].delete(0, tk.END)
                         sector_entries["secondSideMorale"].insert(0, "0.0")
             
-            messagebox.showinfo("Total Victory", f"All sectors in {self.current_war} set to 100% control for first side!")
+            messagebox.showinfo("Support Second Side", f"{self.current_war} will be won by the second side!")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to set total victory:\n{str(e)}")
+            messagebox.showerror("Error", f"Failed to set status:\n{str(e)}")
 
     def total_defeat(self):
         """Set all sectors to 0% control for first side"""
@@ -1746,9 +1746,9 @@ class CITK2SaveEditor:
                         sector_entries["secondSideMorale"].delete(0, tk.END)
                         sector_entries["secondSideMorale"].insert(0, "100.0")
             
-            messagebox.showinfo("Total Defeat", f"All sectors in {self.current_war} set to 0% control for first side!")
+            messagebox.showinfo("Support First Side", f"{self.current_war} will be won by the first side!")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to set total defeat:\n{str(e)}")
+            messagebox.showerror("Error", f"Failed to set status:\n{str(e)}")
 
     def set_stalemate(self):
         """Set all sectors to 50% control for both sides"""
