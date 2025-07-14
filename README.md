@@ -4,7 +4,8 @@ A Save Editor for Crisis in the Kremlin 2
 Functionalities:
 1. Edit basic variables.
 2. Find and edit specific countries and characters with the searchbox.
-3. Quick buttons in Main Variable
+3. Change the situation of ongoing wars
+4. Quick buttons in Main Variable
 
    Loyal to the Cause: Change all loyalty values to 100
    
