@@ -21,13 +21,13 @@ class CITK2SaveEditor:
             "reserve": "Reserve",
             "refinancingRate": "Refinancing Rate (%)",
             "export": "Export",
-            "healthCare": "Healthcare Funding",
-            "education": "Education Funding",
-            "ecology": "Ecology Funding",
+            "healthCare": "Healthcare Access Level",
+            "education": "Education Access Level",
+            "ecology": "Ecology",
             "militaryStaffLoyalty": "Military Leadership Loyalty",
             "armyStaffLoyalty": "Army Loyalty",
             "specialServicesLoyalty": "Special Services Loyalty",
-            "specialServices": "Special Services Funding",
+            "specialServices": "Special Services Strength",
             "radicalsPower": "Radicals Power",
             "freedomLevel": "Civil Liberties",
             "liberalizationLevel": "Liberalization",
@@ -81,8 +81,33 @@ class CITK2SaveEditor:
         # Define possible values for combo boxes
         self.country_options = ["Russia", "Ukraine", "Belarus", "Kazakhstan", "Uzbekistan", "Georgia", "Azerbaijan", "Lithuania", "Estonia", "Latvia", "Moldova", "Kyrgyzstan", "Tajikistan", "Armenia", "Turkmenistan"]
         self.position_options = ["ChairmanOfTheSupremeCouncil", "SecondSecretary", "ChairmanOfTheCouncilOfMinisters", "ForeignSecretary", "ChairmanOfTheKGB", "MinisterOfDefense", "MinisterOfIndustry", "MinisterForYouthAffairs", "MinisterOfFinance", "GRU", "MinisterOfAgriculture", "MinisterOfEducation", "MinisterOfInternalAffairs",None]
-        self.status_options = ["Alive", "Dead", "Imprisoned", "Exiled", "Retired"]
+        self.status_options = ["Alive", "Dead", "NotPresented"]
         self.trait_options = ["Ascetic", "Atlantophile", "Atlantophobe", "Chauvinist", "Compromise", "ConspiracyTheorist", "Dissident", "Economical", "EffectiveManager", "GlasnostActivist", "Hedonist", "Idealist", "InefficientManager", "Industrialist", "Intelligent", "Maoist", "Monarchist", "NuclearScientist", "Orientalist", "Partocrat", "Peaceful", "Peoplefavorite", "ProConservative", "ProLiberalDemocrat", "ProMarket", "ProNationalDemocrat", "ProNeostalinist", "ProNeotrotskist", "ProReformist", "ProSocialPatriot", "Radical", "RocketBuilder", "Schemer", "StrongArm", "Technocrat", "Unambitious", "Uncompromising", "Voluntarist"]
+        
+        # Define war attributes
+        self.war_attributes = {
+            "warResultStatus": "War Result Status",
+            "activateButtons": "Activate Buttons",
+            "dateEndButtons": "Date End Buttons",
+            "playersAdvisor": "Player's Advisor",
+            "firstSideSupporters": "First Side Supporters",
+            "secondSideSupporters": "Second Side Supporters",
+            "firstSideMapCountry": "First Side Map Country",
+            "secondSideMapCountry": "Second Side Map Country",
+            "firstSideBalance": "First Side Balance",
+            "secondSideBalance": "Second Side Balance",
+            "region": "Region"
+        }
+        
+        self.sector_attributes = {
+            "wasDestroyed": "Was Destroyed",
+            "chemicalAttacked": "Chemical Attacked",
+            "napalmAttacked": "Napalm Attacked",
+            "activateButtons": "Activate Buttons",
+            "control": "Control",
+            "firstSideMorale": "First Side Morale",
+            "secondSideMorale": "Second Side Morale"
+        }
         
         # Create GUI elements
         self.create_widgets()
@@ -95,6 +120,7 @@ class CITK2SaveEditor:
         self.original_content = ""
         self.current_country = None
         self.current_character = None
+        self.current_war = None
         self.json_match = None  # Store JSON match for exact replacement
 
     def create_widgets(self):
@@ -132,6 +158,11 @@ class CITK2SaveEditor:
         characters_tab = ttk.Frame(notebook, style="Red.TFrame")
         notebook.add(characters_tab, text="Characters")
         self.create_characters_tab(characters_tab)
+        
+        # Create wars tab
+        wars_tab = ttk.Frame(notebook, style="Red.TFrame")
+        notebook.add(wars_tab, text="Current Wars")
+        self.create_wars_tab(wars_tab)
         
         # Create button frame
         button_frame = ttk.Frame(self.root, style="Gold.TFrame")
@@ -466,30 +497,6 @@ class CITK2SaveEditor:
         )
         assassinate_btn.pack(fill=tk.X, padx=2, pady=2)
         
-        imprison_btn = ttk.Button(
-            char_actions_frame, 
-            text="Imprison", 
-            command=lambda: self.set_character_status("Imprisoned"),
-            style="Gold.TButton"
-        )
-        imprison_btn.pack(fill=tk.X, padx=2, pady=2)
-        
-        exile_btn = ttk.Button(
-            char_actions_frame, 
-            text="Exile", 
-            command=lambda: self.set_character_status("Exiled"),
-            style="Gold.TButton"
-        )
-        exile_btn.pack(fill=tk.X, padx=2, pady=2)
-        
-        retire_btn = ttk.Button(
-            char_actions_frame, 
-            text="Retire", 
-            command=lambda: self.set_character_status("Retired"),
-            style="Gold.TButton"
-        )
-        retire_btn.pack(fill=tk.X, padx=2, pady=2)
-        
         resurrect_btn = ttk.Button(
             char_actions_frame, 
             text="Resurrect", 
@@ -528,6 +535,116 @@ class CITK2SaveEditor:
             char_actions_frame, 
             text="Save Character Changes", 
             command=self.save_character,
+            style="Gold.TButton"
+        )
+        save_btn.pack(fill=tk.X, padx=2, pady=2)
+        
+    def create_wars_tab(self, parent):
+        """Create the Current Wars tab interface"""
+        paned_window = ttk.PanedWindow(parent, orient=tk.HORIZONTAL)
+        paned_window.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # War list frame
+        list_frame = ttk.Frame(paned_window, style="Gold.TFrame", width=200)
+        paned_window.add(list_frame, weight=1)
+        
+        # War list label and search bar
+        search_frame = ttk.Frame(list_frame, style="Gold.TFrame")
+        search_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(
+            search_frame, 
+            text="Search Wars:", 
+            style="Gold.TLabel"
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.war_search_var = tk.StringVar()
+        war_search_entry = ttk.Entry(
+            search_frame, 
+            textvariable=self.war_search_var,
+            width=15,
+            style="Gold.TEntry"
+        )
+        war_search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        war_search_entry.bind("<KeyRelease>", self.filter_wars)
+        
+        ttk.Label(list_frame, text="Current Wars", style="Gold.TLabel", font=("Arial", 10, "bold")).pack(pady=(0, 5))
+        
+        # War listbox with scrollbar
+        list_scroll = ttk.Scrollbar(list_frame)
+        list_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.war_listbox = tk.Listbox(
+            list_frame, 
+            yscrollcommand=list_scroll.set,
+            bg="#DAA520", 
+            fg="#8B0000",
+            selectbackground="#8B0000",
+            selectforeground="#FFD700",
+            font=("Arial", 9),
+            selectmode=tk.SINGLE
+        )
+        self.war_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        list_scroll.config(command=self.war_listbox.yview)
+        
+        # Bind selection event
+        self.war_listbox.bind("<ButtonRelease-1>", self.on_war_select)
+        
+        # War attributes frame
+        attr_frame = ttk.Frame(paned_window, style="Red.TFrame")
+        paned_window.add(attr_frame, weight=3)
+        
+        # Attributes scrollable area
+        attr_canvas = tk.Canvas(attr_frame, bg="#B22222", highlightthickness=0)
+        attr_scroll = ttk.Scrollbar(attr_frame, orient="vertical", command=attr_canvas.yview)
+        
+        # Create a new frame inside the canvas for attributes
+        self.war_attr_container = ttk.Frame(attr_canvas, style="Red.TFrame")
+        attr_canvas.create_window((0, 0), window=self.war_attr_container, anchor="nw")
+        
+        self.war_attr_container.bind(
+            "<Configure>",
+            lambda e: attr_canvas.configure(scrollregion=attr_canvas.bbox("all"))
+        )
+        attr_canvas.configure(yscrollcommand=attr_scroll.set)
+        
+        attr_canvas.pack(side="left", fill="both", expand=True)
+        attr_scroll.pack(side="right", fill="y")
+        
+        # Create frame for war action buttons (VERTICAL LAYOUT)
+        war_actions_frame = ttk.Frame(attr_frame, style="Gold.TFrame")
+        war_actions_frame.pack(side="right", fill=tk.Y, padx=(5, 0), pady=5)
+        
+        # Add war action buttons
+        victory_btn = ttk.Button(
+            war_actions_frame, 
+            text="Total Victory", 
+            command=self.total_victory,
+            style="Gold.TButton"
+        )
+        victory_btn.pack(fill=tk.X, padx=2, pady=2)
+        
+        defeat_btn = ttk.Button(
+            war_actions_frame, 
+            text="Total Defeat", 
+            command=self.total_defeat,
+            style="Gold.TButton"
+        )
+        defeat_btn.pack(fill=tk.X, padx=2, pady=2)
+        
+        stalemate_btn = ttk.Button(
+            war_actions_frame, 
+            text="Set Stalemate", 
+            command=self.set_stalemate,
+            style="Gold.TButton"
+        )
+        stalemate_btn.pack(fill=tk.X, padx=2, pady=2)
+        
+        # Save war button
+        save_btn = ttk.Button(
+            war_actions_frame, 
+            text="Save War Changes", 
+            command=self.save_war,
             style="Gold.TButton"
         )
         save_btn.pack(fill=tk.X, padx=2, pady=2)
@@ -630,6 +747,24 @@ class CITK2SaveEditor:
             for character in self.all_characters:
                 if search_text in character.lower():
                     self.character_listbox.insert(tk.END, character)
+                    
+    def filter_wars(self, event=None):
+        """Filter war list based on search text"""
+        if not hasattr(self, 'all_wars'):
+            return
+            
+        search_text = self.war_search_var.get().lower()
+        self.war_listbox.delete(0, tk.END)
+        
+        if not search_text:
+            # Show all wars if search is empty
+            for war in self.all_wars:
+                self.war_listbox.insert(tk.END, war)
+        else:
+            # Filter wars that match search text
+            for war in self.all_wars:
+                if search_text in war.lower():
+                    self.war_listbox.insert(tk.END, war)
 
     def open_file(self):
         """Open a CITK2 save file from default directory"""
@@ -683,6 +818,13 @@ class CITK2SaveEditor:
                 self.character_listbox.delete(0, tk.END)
                 for character_name in self.all_characters:
                     self.character_listbox.insert(tk.END, character_name)
+                    
+            # Populate war list
+            if "currentWars" in data and data["currentWars"]:
+                self.all_wars = list(data["currentWars"].keys())
+                self.war_listbox.delete(0, tk.END)
+                for war_name in self.all_wars:
+                    self.war_listbox.insert(tk.END, war_name)
             
             messagebox.showinfo("Success", "Comrade! File loaded successfully!")
         except Exception as e:
@@ -1168,6 +1310,187 @@ class CITK2SaveEditor:
             messagebox.showinfo("Success", f"{self.current_character} updated successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save character:\n{str(e)}")
+            
+    def on_war_select(self, event):
+        """Handle war selection from listbox"""
+        # Clear previous attributes
+        for widget in self.war_attr_container.winfo_children():
+            widget.destroy()
+        
+        # Get selected war
+        selection = self.war_listbox.curselection()
+        if not selection:
+            return
+            
+        war_name = self.war_listbox.get(selection[0])
+        if not war_name:
+            return
+            
+        self.current_war = war_name
+        war_data = self.data["currentWars"][war_name]
+        
+        # Create a new frame to hold all attributes
+        self.war_attr_frame = ttk.Frame(self.war_attr_container, style="Red.TFrame")
+        self.war_attr_frame.pack(fill="both", expand=True)
+        
+        # Display war name
+        name_frame = ttk.Frame(self.war_attr_frame, style="Gold.TFrame")
+        name_frame.pack(fill=tk.X, padx=5, pady=5)
+        ttk.Label(
+            name_frame, 
+            text=f"Editing: {war_name}", 
+            style="Gold.TLabel",
+            font=("Arial", 11, "bold")
+        ).pack()
+        
+        # Create attribute entries
+        self.war_entries = {}
+        for attr, display_name in self.war_attributes.items():
+            if attr not in war_data:
+                continue
+                
+            # Create frame for this attribute
+            frame = ttk.Frame(self.war_attr_frame, style="Red.TFrame")
+            frame.pack(fill=tk.X, padx=5, pady=2)
+            
+            # Create label
+            label = ttk.Label(frame, text=f"{display_name}:", width=25, anchor="e", style="Gold.TLabel")
+            label.pack(side=tk.LEFT, padx=(0, 5))
+            
+            # Handle different attribute types
+            value = war_data[attr]
+            
+            if isinstance(value, bool):
+                var = tk.BooleanVar(value=value)
+                entry = ttk.Checkbutton(frame, variable=var, style="Gold.TCheckbutton")
+                entry.var = var
+            elif isinstance(value, list):
+                # Convert list to comma-separated string
+                entry = ttk.Entry(frame, width=30, style="Gold.TEntry")
+                entry.insert(0, ",".join(value))
+            elif value is None:
+                entry = ttk.Entry(frame, width=30, style="Gold.TEntry")
+                entry.insert(0, "null")
+            elif isinstance(value, dict):
+                # Skip dictionaries for now
+                continue
+            else:
+                entry = ttk.Entry(frame, width=30, style="Gold.TEntry")
+                entry.insert(0, str(value))
+                
+            entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            self.war_entries[attr] = entry
+        
+        # Add sectors section
+        if "sectors" in war_data and war_data["sectors"]:
+            sectors_frame = ttk.Frame(self.war_attr_frame, style="Gold.TFrame")
+            sectors_frame.pack(fill=tk.X, padx=5, pady=5)
+            ttk.Label(
+                sectors_frame, 
+                text="Sectors:", 
+                style="Gold.TLabel",
+                font=("Arial", 10, "bold")
+            ).pack(anchor="w")
+            
+            # Create notebook for sectors
+            sectors_notebook = ttk.Notebook(self.war_attr_frame)
+            sectors_notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+            
+            self.sector_entries = []
+            for i, sector in enumerate(war_data["sectors"]):
+                sector_tab = ttk.Frame(sectors_notebook, style="Red.TFrame")
+                sectors_notebook.add(sector_tab, text=f"Sector {i+1}")
+                
+                # Create sector entries
+                sector_entries = {}
+                for attr, display_name in self.sector_attributes.items():
+                    if attr not in sector:
+                        continue
+                        
+                    frame = ttk.Frame(sector_tab, style="Red.TFrame")
+                    frame.pack(fill=tk.X, padx=5, pady=2)
+                    
+                    label = ttk.Label(frame, text=f"{display_name}:", width=20, anchor="e", style="Gold.TLabel")
+                    label.pack(side=tk.LEFT, padx=(0, 5))
+                    
+                    value = sector[attr]
+                    
+                    if isinstance(value, bool):
+                        var = tk.BooleanVar(value=value)
+                        entry = ttk.Checkbutton(frame, variable=var, style="Gold.TCheckbutton")
+                        entry.var = var
+                    elif isinstance(value, list):
+                        entry = ttk.Entry(frame, width=25, style="Gold.TEntry")
+                        entry.insert(0, ",".join(value))
+                    else:
+                        entry = ttk.Entry(frame, width=25, style="Gold.TEntry")
+                        entry.insert(0, str(value))
+                        
+                    entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                    sector_entries[attr] = entry
+                
+                self.sector_entries.append(sector_entries)
+
+    def save_war(self):
+        """Save changes to the currently selected war"""
+        if not self.current_war or not self.data:
+            return
+            
+        try:
+            war_data = self.data["currentWars"][self.current_war]
+            
+            # Update top-level war attributes
+            for attr, entry in self.war_entries.items():
+                if isinstance(entry, ttk.Checkbutton):
+                    war_data[attr] = entry.var.get()
+                else:
+                    value_str = entry.get()
+                    
+                    if value_str == "null":
+                        war_data[attr] = None
+                    elif attr in ["activateButtons", "firstSideSupporters", "secondSideSupporters"]:
+                        # Convert comma-separated string back to list
+                        war_data[attr] = [x.strip() for x in value_str.split(",") if x.strip()]
+                    elif attr in ["firstSideBalance", "secondSideBalance"]:
+                        try:
+                            war_data[attr] = int(value_str)
+                        except ValueError:
+                            pass
+                    else:
+                        try:
+                            war_data[attr] = float(value_str) if '.' in value_str else int(value_str)
+                        except ValueError:
+                            war_data[attr] = value_str
+            
+            # Update sectors if they exist
+            if "sectors" in war_data and hasattr(self, 'sector_entries'):
+                for i, sector in enumerate(war_data["sectors"]):
+                    if i >= len(self.sector_entries):
+                        continue
+                        
+                    sector_entries = self.sector_entries[i]
+                    for attr, entry in sector_entries.items():
+                        if isinstance(entry, ttk.Checkbutton):
+                            sector[attr] = entry.var.get()
+                        else:
+                            value_str = entry.get()
+                            
+                            if attr == "activateButtons":
+                                sector[attr] = [x.strip() for x in value_str.split(",") if x.strip()]
+                            elif attr in ["control", "firstSideMorale", "secondSideMorale"]:
+                                try:
+                                    sector[attr] = float(value_str)
+                                except ValueError:
+                                    pass
+                            else:
+                                try:
+                                    sector[attr] = int(value_str) if value_str.isdigit() else value_str
+                                except ValueError:
+                                    sector[attr] = value_str
+            
+            messagebox.showinfo("Success", f"{self.current_war} updated successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save war:\n{str(e)}")
 
     # ====== FUNCTIONS FOR ACTION BUTTONS ======
     
@@ -1362,6 +1685,101 @@ class CITK2SaveEditor:
         
         messagebox.showinfo("Supreme Leader", 
                            f"Set relations to 100 for {count} characters!")
+                           
+    # ====== WAR ACTION BUTTONS ======
+    
+    def total_victory(self):
+        """Set all sectors to 100% control for first side"""
+        if not self.current_war or not self.data:
+            return
+            
+        try:
+            war_data = self.data["currentWars"][self.current_war]
+            
+            if "sectors" in war_data:
+                for sector in war_data["sectors"]:
+                    sector["control"] = 100.0
+                    sector["firstSideMorale"] = 100.0
+                    sector["secondSideMorale"] = 0.0
+            
+            # Update UI if we're viewing this war
+            if hasattr(self, 'sector_entries'):
+                for sector_entries in self.sector_entries:
+                    if "control" in sector_entries:
+                        sector_entries["control"].delete(0, tk.END)
+                        sector_entries["control"].insert(0, "100.0")
+                    if "firstSideMorale" in sector_entries:
+                        sector_entries["firstSideMorale"].delete(0, tk.END)
+                        sector_entries["firstSideMorale"].insert(0, "100.0")
+                    if "secondSideMorale" in sector_entries:
+                        sector_entries["secondSideMorale"].delete(0, tk.END)
+                        sector_entries["secondSideMorale"].insert(0, "0.0")
+            
+            messagebox.showinfo("Total Victory", f"All sectors in {self.current_war} set to 100% control for first side!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set total victory:\n{str(e)}")
+
+    def total_defeat(self):
+        """Set all sectors to 0% control for first side"""
+        if not self.current_war or not self.data:
+            return
+            
+        try:
+            war_data = self.data["currentWars"][self.current_war]
+            
+            if "sectors" in war_data:
+                for sector in war_data["sectors"]:
+                    sector["control"] = 0.0
+                    sector["firstSideMorale"] = 0.0
+                    sector["secondSideMorale"] = 100.0
+            
+            # Update UI if we're viewing this war
+            if hasattr(self, 'sector_entries'):
+                for sector_entries in self.sector_entries:
+                    if "control" in sector_entries:
+                        sector_entries["control"].delete(0, tk.END)
+                        sector_entries["control"].insert(0, "0.0")
+                    if "firstSideMorale" in sector_entries:
+                        sector_entries["firstSideMorale"].delete(0, tk.END)
+                        sector_entries["firstSideMorale"].insert(0, "0.0")
+                    if "secondSideMorale" in sector_entries:
+                        sector_entries["secondSideMorale"].delete(0, tk.END)
+                        sector_entries["secondSideMorale"].insert(0, "100.0")
+            
+            messagebox.showinfo("Total Defeat", f"All sectors in {self.current_war} set to 0% control for first side!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set total defeat:\n{str(e)}")
+
+    def set_stalemate(self):
+        """Set all sectors to 50% control for both sides"""
+        if not self.current_war or not self.data:
+            return
+            
+        try:
+            war_data = self.data["currentWars"][self.current_war]
+            
+            if "sectors" in war_data:
+                for sector in war_data["sectors"]:
+                    sector["control"] = 50.0
+                    sector["firstSideMorale"] = 50.0
+                    sector["secondSideMorale"] = 50.0
+            
+            # Update UI if we're viewing this war
+            if hasattr(self, 'sector_entries'):
+                for sector_entries in self.sector_entries:
+                    if "control" in sector_entries:
+                        sector_entries["control"].delete(0, tk.END)
+                        sector_entries["control"].insert(0, "50.0")
+                    if "firstSideMorale" in sector_entries:
+                        sector_entries["firstSideMorale"].delete(0, tk.END)
+                        sector_entries["firstSideMorale"].insert(0, "50.0")
+                    if "secondSideMorale" in sector_entries:
+                        sector_entries["secondSideMorale"].delete(0, tk.END)
+                        sector_entries["secondSideMorale"].insert(0, "50.0")
+            
+            messagebox.showinfo("Stalemate", f"All sectors in {self.current_war} set to 50% control!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set stalemate:\n{str(e)}")
 
 if __name__ == "__main__":
     root = tk.Tk()
