@@ -109,6 +109,16 @@ class CITK2SaveEditor:
             "secondSideMorale": "Second Side Morale"
         }
         
+        # Define faction attributes
+        self.faction_attributes = {
+            "playersAlly": "Player's Ally",
+            "type": "Type",
+            "nameType": "Name Type",
+            "lastSurvDate": "Last Survey Date",
+            "numbers": "Numbers",
+            "displayNumbersWhenMultiParty": "Display Numbers When MultiParty"
+        }
+        
         # Create GUI elements
         self.create_widgets()
         self.current_file = None
@@ -121,6 +131,7 @@ class CITK2SaveEditor:
         self.current_country = None
         self.current_character = None
         self.current_war = None
+        self.current_faction = None
         self.json_match = None  # Store JSON match for exact replacement
 
     def create_widgets(self):
@@ -163,6 +174,11 @@ class CITK2SaveEditor:
         wars_tab = ttk.Frame(notebook, style="Red.TFrame")
         notebook.add(wars_tab, text="Current Wars")
         self.create_wars_tab(wars_tab)
+        
+        # Create factions tab
+        factions_tab = ttk.Frame(notebook, style="Red.TFrame")
+        notebook.add(factions_tab, text="Factions' Status")
+        self.create_factions_tab(factions_tab)
         
         # Create button frame
         button_frame = ttk.Frame(self.root, style="Gold.TFrame")
@@ -648,6 +664,100 @@ class CITK2SaveEditor:
             style="Gold.TButton"
         )
         save_btn.pack(fill=tk.X, padx=2, pady=2)
+        
+    def create_factions_tab(self, parent):
+        """Create the Factions' Status tab interface"""
+        paned_window = ttk.PanedWindow(parent, orient=tk.HORIZONTAL)
+        paned_window.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Faction list frame
+        list_frame = ttk.Frame(paned_window, style="Gold.TFrame", width=200)
+        paned_window.add(list_frame, weight=1)
+        
+        # Faction list label and search bar
+        search_frame = ttk.Frame(list_frame, style="Gold.TFrame")
+        search_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(
+            search_frame, 
+            text="Search Factions:", 
+            style="Gold.TLabel"
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.faction_search_var = tk.StringVar()
+        faction_search_entry = ttk.Entry(
+            search_frame, 
+            textvariable=self.faction_search_var,
+            width=15,
+            style="Gold.TEntry"
+        )
+        faction_search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        faction_search_entry.bind("<KeyRelease>", self.filter_factions)
+        
+        ttk.Label(list_frame, text="Factions", style="Gold.TLabel", font=("Arial", 10, "bold")).pack(pady=(0, 5))
+        
+        # Faction listbox with scrollbar
+        list_scroll = ttk.Scrollbar(list_frame)
+        list_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.faction_listbox = tk.Listbox(
+            list_frame, 
+            yscrollcommand=list_scroll.set,
+            bg="#DAA520", 
+            fg="#8B0000",
+            selectbackground="#8B0000",
+            selectforeground="#FFD700",
+            font=("Arial", 9),
+            selectmode=tk.SINGLE
+        )
+        self.faction_listbox.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        list_scroll.config(command=self.faction_listbox.yview)
+        
+        # Bind selection event
+        self.faction_listbox.bind("<ButtonRelease-1>", self.on_faction_select)
+        
+        # Faction attributes frame
+        attr_frame = ttk.Frame(paned_window, style="Red.TFrame")
+        paned_window.add(attr_frame, weight=3)
+        
+        # Attributes scrollable area
+        attr_canvas = tk.Canvas(attr_frame, bg="#B22222", highlightthickness=0)
+        attr_scroll = ttk.Scrollbar(attr_frame, orient="vertical", command=attr_canvas.yview)
+        
+        # Create a new frame inside the canvas for attributes
+        self.faction_attr_container = ttk.Frame(attr_canvas, style="Red.TFrame")
+        attr_canvas.create_window((0, 0), window=self.faction_attr_container, anchor="nw")
+        
+        self.faction_attr_container.bind(
+            "<Configure>",
+            lambda e: attr_canvas.configure(scrollregion=attr_canvas.bbox("all"))
+        )
+        attr_canvas.configure(yscrollcommand=attr_scroll.set)
+        
+        attr_canvas.pack(side="left", fill="both", expand=True)
+        attr_scroll.pack(side="right", fill="y")
+        
+        # Create frame for faction action buttons (VERTICAL LAYOUT)
+        faction_actions_frame = ttk.Frame(attr_frame, style="Gold.TFrame")
+        faction_actions_frame.pack(side="right", fill=tk.Y, padx=(5, 0), pady=5)
+        
+        # Add faction action buttons
+        ally_all_btn = ttk.Button(
+            faction_actions_frame, 
+            text="Ally All Factions", 
+            command=self.ally_all_factions,
+            style="Gold.TButton"
+        )
+        ally_all_btn.pack(fill=tk.X, padx=2, pady=2)
+        
+        # Save faction button
+        save_btn = ttk.Button(
+            faction_actions_frame, 
+            text="Save Faction Changes", 
+            command=self.save_faction,
+            style="Gold.TButton"
+        )
+        save_btn.pack(fill=tk.X, padx=2, pady=2)
 
     def configure_styles(self):
         style = ttk.Style()
@@ -765,6 +875,24 @@ class CITK2SaveEditor:
             for war in self.all_wars:
                 if search_text in war.lower():
                     self.war_listbox.insert(tk.END, war)
+                    
+    def filter_factions(self, event=None):
+        """Filter faction list based on search text"""
+        if not hasattr(self, 'all_factions'):
+            return
+            
+        search_text = self.faction_search_var.get().lower()
+        self.faction_listbox.delete(0, tk.END)
+        
+        if not search_text:
+            # Show all factions if search is empty
+            for faction in self.all_factions:
+                self.faction_listbox.insert(tk.END, faction)
+        else:
+            # Filter factions that match search text
+            for faction in self.all_factions:
+                if search_text in faction.lower():
+                    self.faction_listbox.insert(tk.END, faction)
 
     def open_file(self):
         """Open a CITK2 save file from default directory"""
@@ -825,6 +953,13 @@ class CITK2SaveEditor:
                 self.war_listbox.delete(0, tk.END)
                 for war_name in self.all_wars:
                     self.war_listbox.insert(tk.END, war_name)
+            
+            # Populate faction list
+            if "partyStates" in data:
+                self.all_factions = list(data["partyStates"].keys())
+                self.faction_listbox.delete(0, tk.END)
+                for faction_name in self.all_factions:
+                    self.faction_listbox.insert(tk.END, faction_name)
             
             messagebox.showinfo("Success", "Comrade! File loaded successfully!")
         except Exception as e:
@@ -1491,6 +1626,103 @@ class CITK2SaveEditor:
             messagebox.showinfo("Success", f"{self.current_war} updated successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save war:\n{str(e)}")
+            
+    def on_faction_select(self, event):
+        """Handle faction selection from listbox"""
+        # Clear previous attributes
+        for widget in self.faction_attr_container.winfo_children():
+            widget.destroy()
+        
+        # Get selected faction
+        selection = self.faction_listbox.curselection()
+        if not selection:
+            return
+            
+        faction_name = self.faction_listbox.get(selection[0])
+        if not faction_name:
+            return
+            
+        self.current_faction = faction_name
+        faction_data = self.data["partyStates"][faction_name]
+        
+        # Create a new frame to hold all attributes
+        self.faction_attr_frame = ttk.Frame(self.faction_attr_container, style="Red.TFrame")
+        self.faction_attr_frame.pack(fill="both", expand=True)
+        
+        # Display faction name
+        name_frame = ttk.Frame(self.faction_attr_frame, style="Gold.TFrame")
+        name_frame.pack(fill=tk.X, padx=5, pady=5)
+        ttk.Label(
+            name_frame, 
+            text=f"Editing: {faction_name}", 
+            style="Gold.TLabel",
+            font=("Arial", 11, "bold")
+        ).pack()
+        
+        # Create attribute entries
+        self.faction_entries = {}
+        for attr, display_name in self.faction_attributes.items():
+            if attr not in faction_data:
+                continue
+                
+            # Create frame for this attribute
+            frame = ttk.Frame(self.faction_attr_frame, style="Red.TFrame")
+            frame.pack(fill=tk.X, padx=5, pady=2)
+            
+            # Create label
+            label = ttk.Label(frame, text=f"{display_name}:", width=25, anchor="e", style="Gold.TLabel")
+            label.pack(side=tk.LEFT, padx=(0, 5))
+            
+            # Handle different attribute types
+            value = faction_data[attr]
+            
+            if isinstance(value, bool):
+                var = tk.BooleanVar(value=value)
+                entry = ttk.Checkbutton(frame, variable=var, style="Gold.TCheckbutton")
+                entry.var = var
+            else:
+                entry = ttk.Entry(frame, width=20, style="Gold.TEntry")
+                entry.insert(0, str(value))
+                
+                # Add integer validation for appropriate fields
+                if attr in ["type", "nameType", "numbers", "displayNumbersWhenMultiParty"]:
+                    vcmd = (self.root.register(self.validate_int), '%P')
+                    entry.configure(validate="key", validatecommand=vcmd)
+            
+            entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            self.faction_entries[attr] = entry
+
+    def save_faction(self):
+        """Save changes to the currently selected faction"""
+        if not self.current_faction or not self.data:
+            return
+            
+        try:
+            faction_data = self.data["partyStates"][self.current_faction]
+            
+            # Update attributes
+            for attr, entry in self.faction_entries.items():
+                if isinstance(entry, ttk.Checkbutton):
+                    faction_data[attr] = entry.var.get()
+                else:
+                    value_str = entry.get()
+                    
+                    # Convert to appropriate type
+                    if value_str == "null":
+                        value = None
+                    elif attr in ["type", "nameType", "numbers", "displayNumbersWhenMultiParty"]:
+                        try:
+                            value = int(value_str)
+                        except ValueError:
+                            value = faction_data[attr]  # Keep original value on error
+                    else:
+                        value = value_str
+                    
+                    faction_data[attr] = value
+            
+            messagebox.showinfo("Success", f"{self.current_faction} updated successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save faction:\n{str(e)}")
 
     # ====== FUNCTIONS FOR ACTION BUTTONS ======
     
@@ -1780,6 +2012,28 @@ class CITK2SaveEditor:
             messagebox.showinfo("Stalemate", f"All sectors in {self.current_war} set to 50% control!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to set stalemate:\n{str(e)}")
+            
+    # ====== FACTION ACTION BUTTONS ======
+    
+    def ally_all_factions(self):
+        """Set playersAlly to True for all factions"""
+        if not self.data or "partyStates" not in self.data:
+            messagebox.showwarning("Warning", "No faction data available")
+            return
+            
+        count = 0
+        for faction_name, faction_data in self.data["partyStates"].items():
+            if "playersAlly" in faction_data:
+                faction_data["playersAlly"] = True
+                count += 1
+        
+        # Update UI if we're viewing a faction
+        if self.current_faction and "playersAlly" in self.faction_entries:
+            self.faction_entries["playersAlly"].var.set(True)
+        
+        messagebox.showinfo("Ally All Factions", 
+                           f"Set playersAlly to True for {count} factions!")
+                           
 
 if __name__ == "__main__":
     root = tk.Tk()
